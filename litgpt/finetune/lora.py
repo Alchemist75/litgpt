@@ -66,6 +66,8 @@ def setup(
     ),
     eval: EvalArgs = EvalArgs(interval=100, max_new_tokens=100, max_iters=100),
     logger_name: Literal["wandb", "tensorboard", "csv"] = "csv",
+    logger_run_name: Optional[str] = None,
+    logger_wandb_project: Optional[str] = None,
     seed: int = 1337,
 ) -> None:
     """Finetune a model using the LoRA method.
@@ -112,8 +114,10 @@ def setup(
         lora_head=lora_head,
     )
 
+    if not logger_run_name:
+        logger_run_name = f"finetune-{config.name}"
     precision = precision or get_default_supported_precision(training=True)
-    logger = choose_logger(logger_name, out_dir, name=f"finetune-{config.name}", log_interval=train.log_interval)
+    logger = choose_logger(logger_name, out_dir, name=logger_run_name, log_interval=train.log_interval, project=logger_wandb_project)
 
     plugins = None
     if quantize is not None and quantize.startswith("bnb."):
@@ -357,7 +361,9 @@ def validate(fabric: L.Fabric, model: GPT, val_dataloader: DataLoader, eval: Eva
 
 @torch.no_grad()
 def generate_example(fabric: L.Fabric, model: GPT, tokenizer: Tokenizer, eval: EvalArgs, data: DataModule):
-    instruction = "Recommend a movie for me to watch during the weekend and explain the reason."
+    _old_seq_len = model.max_seq_length
+    model.max_seq_length = 512
+    instruction = "Generate a subquestion for the following query: \"What was the cause of WW1\""
     fabric.print(instruction)
     prompt = data.prompt_style.apply(instruction)
     encoded = tokenizer.encode(prompt, device=fabric.device)
@@ -371,6 +377,7 @@ def generate_example(fabric: L.Fabric, model: GPT, tokenizer: Tokenizer, eval: E
     )
     model.clear_kv_cache()
     model.train()
+    model.max_seq_length = _old_seq_len
     output = tokenizer.decode(output)
     fabric.print(output)
 

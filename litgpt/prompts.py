@@ -35,7 +35,7 @@ class PromptStyle:
 
 class Default(PromptStyle):
     def apply(self, prompt: str, **kwargs: str) -> str:
-        return prompt
+        return prompt+"\n"
 
     def stop_tokens(self, tokenizer: "Tokenizer") -> Tuple[List[int], ...]:
         return ([tokenizer.eos_id],)
@@ -312,6 +312,7 @@ prompt_styles: Dict[str, Type[PromptStyle]] = {
     "phi-2": Phi2,
     "tinyllama": TinyLlama,
     "gemma": Gemma,
+    "default": Default,
 }
 
 
